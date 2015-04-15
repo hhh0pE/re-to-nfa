@@ -1,10 +1,10 @@
 package main
 
 import (
-    "os"
-    "fmt"
+	"os"
 )
 
 func main() {
-    fmt.Println(os.Args)
+	nfa := buildNFA(os.Args[1])
+	nfa.printNFA()
 }
