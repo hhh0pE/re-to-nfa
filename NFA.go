@@ -111,7 +111,7 @@ func powerNFA(a *NFA) *NFA {
 }
 
 func buildNFA(pattern string) *NFA {
-	//fmt.Println(pattern)
+	fmt.Println(pattern)
 	if len(pattern) == 1 {
 		if strings.Contains(pattern, "+*()") {
 			return nil
@@ -125,73 +125,94 @@ func buildNFA(pattern string) *NFA {
 		return NewNFA(&node1, &node2)
 	}
 
-	//    // has only one ( and )
-	//    if strings.Count(pattern, "(") == 1 && strings.Count(pattern, ")") == 1 {
-	//        // (...) => ,,,
-	//        if pattern[0]=='(' && pattern[len(pattern)-1]==')' {
-	//            pattern = strings.Trim(pattern, "()")
-	//        }
-	//        // (,,.)*
-	//        if pattern[len(pattern)-1] == '*' {
-	//            return powerNFA(buildNFA(pattern[:len(pattern)-1]))
-	//        }
-	//    }
-	//    // (..)..(..)..
-	//    if strings.Count(pattern, "()">0) {
-	//
-	//    }
+	if len(pattern) == 2 {
+		if pattern[1] == '*' {
+			if pattern[0] == '(' || pattern[0] == ')' || pattern[0] == '*' || pattern[0] == '+' {
+				panic("Error left symbol of pattern " + pattern)
+			}
+			return powerNFA(buildNFA(string(pattern[0])))
+		}
+		return multiplyNFA(buildNFA(string(pattern[0])), buildNFA(string(pattern[1])))
+	}
 
-	// if ( or ) don't exists
 	if strings.Count(pattern, "(") == 0 && strings.Count(pattern, ")") == 0 {
 		// ..+..
 		if index := strings.Index(pattern, "+"); index > 0 {
 			return addNFA(buildNFA(pattern[:index]), buildNFA(pattern[index+1:]))
 		}
+
 		// ...*
 		if pattern[len(pattern)-1] == '*' {
 			return powerNFA(buildNFA(pattern[:len(pattern)-1]))
 		}
-	}
 
-	// if (..)
-	// change to ..
-    
-	if strings.Count(pattern, "(") == 1 && strings.Count(pattern, ")") == 1 && pattern[0] == '(' && pattern[len(pattern)-1] == ')' {
-		pattern = strings.Trim(pattern, "()")
+		// abc*db
+		if index := strings.Index(pattern, "*"); index > 0 {
+			return multiplyNFA(buildNFA(pattern[:index]), buildNFA(pattern[index+1:]))
+		}
+
+		// abcd
+		return multiplyNFA(buildNFA(string(pattern[0])), buildNFA(pattern[1:]))
 	}
 
 	// a lot of (..)..(..)..(..)
-	left_bracket_count, right_bracket_count := 0, 0
+	brackets_level := 0
+	left_bracket_index, right_bracket_index := -1, 0
 	for i, s := range pattern {
 		if s == '(' {
-			left_bracket_count++
+
+			brackets_level++
+			if left_bracket_index == -1 {
+				left_bracket_index = i
+			}
 		}
 		if s == ')' {
-			right_bracket_count++
+			brackets_level--
+			if brackets_level == 0 {
+				right_bracket_index = i
+			}
 		}
 
-		if s == '+' && left_bracket_count == right_bracket_count {
-			return addNFA(buildNFA(pattern[:i]), buildNFA(pattern[i+1:]))
+		if brackets_level == 0 && left_bracket_index != -1 {
+			break
 		}
 	}
 
-	if left_bracket_count != right_bracket_count {
+	if brackets_level != 0 {
 		panic("Left and rights bracket doesn't equal!")
 	}
 
-	if pattern[0] == '(' && pattern[len(pattern)-1] == ')' {
-		pattern = strings.Trim(pattern, "()")
+	// (..)
+	if left_bracket_index == 0 && right_bracket_index == len(pattern)-1 {
+		return buildNFA(pattern[1 : len(pattern)-1])
 	}
 
-	if strings.Count(pattern, "+") == 0 && strings.Count(pattern, "*") == 0 {
-		return multiplyNFA(buildNFA(pattern[:1]), buildNFA(pattern[1:]))
-	}
-
-	if pattern[len(pattern)-1] == '*' {
+	// (..)*
+	if left_bracket_index == 0 && right_bracket_index == len(pattern)-2 && pattern[len(pattern)-1] == '*' {
 		return powerNFA(buildNFA(pattern[:len(pattern)-1]))
 	}
 
-	fmt.Println("!!" + pattern)
+	// X(..) or X+(..)
+	if left_bracket_index >= 1 {
+		if pattern[left_bracket_index-1] == '+' {
+			return addNFA(buildNFA(pattern[:left_bracket_index-1]), buildNFA(pattern[left_bracket_index:]))
+		} else {
+			return multiplyNFA(buildNFA(pattern[:left_bracket_index]), buildNFA(pattern[left_bracket_index:]))
+		}
+	}
+
+	// (..)X or (..)+X or (..)*X or (..)*+X
+	if left_bracket_index == 0 {
+		if pattern[right_bracket_index+1] == '*' {
+			right_bracket_index++
+		}
+
+		if pattern[right_bracket_index+1] == '+' {
+			return addNFA(buildNFA(pattern[:right_bracket_index+1]), buildNFA(pattern[right_bracket_index+2:]))
+		} else {
+			return multiplyNFA(buildNFA(pattern[:right_bracket_index+1]), buildNFA(pattern[right_bracket_index+1:]))
+		}
+	}
 
 	return nil
 }
