@@ -31,16 +31,21 @@ func NewNFA(nodes ...*Node) *NFA {
 }
 
 func (nfa *NFA) printNFA() {
-	fmt.Println("Printing NFA..")
-
-	for _, node := range nfa.nodes {
-		fmt.Println(node.toString())
+	if nfa != nil {
+		fmt.Println("NFA built success. Printing NFA..")
+		for _, node := range nfa.nodes {
+			fmt.Println(node.toString())
+		}
+	} else {
+		fmt.Println("Error when building NFA")
 	}
-
 }
 
 // for a+b
 func addNFA(a *NFA, b *NFA) *NFA {
+	if a == nil || b == nil {
+		return nil
+	}
 	var nodes []*Node
 
 	var start, end Node
@@ -64,6 +69,9 @@ func addNFA(a *NFA, b *NFA) *NFA {
 
 // for ab (a*b)
 func multiplyNFA(a *NFA, b *NFA) *NFA {
+	if a == nil || b == nil {
+		return nil
+	}
 	var nodes []*Node
 	var end Node
 
@@ -82,6 +90,9 @@ func multiplyNFA(a *NFA, b *NFA) *NFA {
 
 // for a*
 func powerNFA(a *NFA) *NFA {
+	if a == nil {
+		return nil
+	}
 	var nodes []*Node
 	var start, end Node
 
@@ -90,6 +101,7 @@ func powerNFA(a *NFA) *NFA {
 	nodes = append(nodes, &end)
 
 	start.Left = a.begin
+	start.Right = &end
 	a.end.Left = a.begin
 	a.end.Right = &end
 
@@ -99,30 +111,87 @@ func powerNFA(a *NFA) *NFA {
 }
 
 func buildNFA(pattern string) *NFA {
-	if len(pattern) == 3 && pattern[1] == '+' { // a+b
-		return addNFA(NewNFA(&Node{LeftSymbol: "a"}), NewNFA(&Node{LeftSymbol: "b"}))
+	//fmt.Println(pattern)
+	if len(pattern) == 1 {
+		if strings.Contains(pattern, "+*()") {
+			return nil
+		}
+
+		// ->Node1-a->Node2
+		var node1, node2 Node
+		node1.Left = &node2
+		node1.LeftSymbol = string(pattern)
+
+		return NewNFA(&node1, &node2)
 	}
-	if len(pattern) == 2 {
-		if pattern[1] == '*' { // a*
-			return powerNFA(NewNFA(&Node{LeftSymbol: string(pattern[0])}))
-		} else { // ab
-			return multiplyNFA(NewNFA(&Node{LeftSymbol: string(pattern[0])}), NewNFA(&Node{LeftSymbol: string(pattern[1])}))
+
+	//    // has only one ( and )
+	//    if strings.Count(pattern, "(") == 1 && strings.Count(pattern, ")") == 1 {
+	//        // (...) => ,,,
+	//        if pattern[0]=='(' && pattern[len(pattern)-1]==')' {
+	//            pattern = strings.Trim(pattern, "()")
+	//        }
+	//        // (,,.)*
+	//        if pattern[len(pattern)-1] == '*' {
+	//            return powerNFA(buildNFA(pattern[:len(pattern)-1]))
+	//        }
+	//    }
+	//    // (..)..(..)..
+	//    if strings.Count(pattern, "()">0) {
+	//
+	//    }
+
+	// if ( or ) don't exists
+	if strings.Count(pattern, "(") == 0 && strings.Count(pattern, ")") == 0 {
+		// ..+..
+		if index := strings.Index(pattern, "+"); index > 0 {
+			return addNFA(buildNFA(pattern[:index]), buildNFA(pattern[index+1:]))
+		}
+		// ...*
+		if pattern[len(pattern)-1] == '*' {
+			return powerNFA(buildNFA(pattern[:len(pattern)-1]))
 		}
 	}
 
-	if len(pattern) > 3 {
-		if pattern[0] == '(' && pattern[len(pattern)-1] == ')' {
-			pattern = strings.Trim(pattern, "()")
+	// if (..)
+	// change to ..
+    
+	if strings.Count(pattern, "(") == 1 && strings.Count(pattern, ")") == 1 && pattern[0] == '(' && pattern[len(pattern)-1] == ')' {
+		pattern = strings.Trim(pattern, "()")
+	}
+
+	// a lot of (..)..(..)..(..)
+	left_bracket_count, right_bracket_count := 0, 0
+	for i, s := range pattern {
+		if s == '(' {
+			left_bracket_count++
 		}
-		if strings.Contains(pattern, "+") {
-			parts := strings.Split(pattern, "+")
-			var nfa *NFA
-			for _, subpattern := range parts {
-				nfa = buildNFA(subpattern)
-				nfa.printNFA()
-			}
+		if s == ')' {
+			right_bracket_count++
+		}
+
+		if s == '+' && left_bracket_count == right_bracket_count {
+			return addNFA(buildNFA(pattern[:i]), buildNFA(pattern[i+1:]))
 		}
 	}
+
+	if left_bracket_count != right_bracket_count {
+		panic("Left and rights bracket doesn't equal!")
+	}
+
+	if pattern[0] == '(' && pattern[len(pattern)-1] == ')' {
+		pattern = strings.Trim(pattern, "()")
+	}
+
+	if strings.Count(pattern, "+") == 0 && strings.Count(pattern, "*") == 0 {
+		return multiplyNFA(buildNFA(pattern[:1]), buildNFA(pattern[1:]))
+	}
+
+	if pattern[len(pattern)-1] == '*' {
+		return powerNFA(buildNFA(pattern[:len(pattern)-1]))
+	}
+
+	fmt.Println("!!" + pattern)
 
 	return nil
 }
