@@ -71,6 +71,6 @@ func TestWithEtalons(t *testing.T) {
         t.Errorf("NFA of pattern \"%s\" is not equal to etalon.", string('a'))
     }
     if nfa_ab.Hash() != nfa2.Hash() {
-        t.Errorf("NFA of pattern \"%s\" is not equal to etalon.\nNFA1 Hash:[% x]\nEtalon Hash:[% x]", "ab", nfa_ab.Hash(), nfa1.Hash())
+        t.Errorf("NFA of pattern \"%s\" is not equal to etalon.\nNFA1 Hash:%x\nEtalon Hash:%x", "ab", nfa_ab.Hash(), nfa1.Hash())
     }
 }

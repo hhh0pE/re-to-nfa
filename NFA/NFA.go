@@ -191,7 +191,7 @@ func BuildNFA(pattern string) *NFA {
 
 		// ...*
 		if pattern[len(pattern)-1] == '*' {
-			return powerNFA(BuildNFA(pattern[:len(pattern)-1]))
+            return multiplyNFA(BuildNFA(pattern[:len(pattern)-2]), BuildNFA(pattern[len(pattern)-2:]))
 		}
 
 		// abc*db

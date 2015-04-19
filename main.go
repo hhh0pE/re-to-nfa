@@ -2,7 +2,7 @@ package main
 
 import (
 	"os"
-    "./NFA"
+    "github.com/hhh0pE/REtoNFA/NFA"
 )
 
 func main() {
