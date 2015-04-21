@@ -8,11 +8,18 @@ import (
 func main() {
 	if len(os.Args) > 1 {
 		nfa := NFA.BuildNFA(os.Args[1])
-		nfa.PrintNFA()
-		nfa.PrintJSON()
 
         if len(os.Args) >=3 {
-            nfa.SaveToFile(os.Args[2])
+            param2 := os.Args[2]
+            if param2 == "JSON" {
+                nfa.PrintJSON()
+                return
+            }
+            if param2 == "Visual" {
+                nfa.PrintNFA()
+                return
+            }
+            nfa.SaveToFile(param2)
         }
 	} else {
 		panic("You must pass RE as parameter. Nothing passed. Nothing to do. Exit.")

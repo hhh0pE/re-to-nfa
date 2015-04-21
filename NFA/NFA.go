@@ -46,6 +46,7 @@ func (nfa *NFA) SaveToFile(filename string) {
     if err != nil {
         fmt.Println("Error when writing to file: "+err.Error())
     }
+    fmt.Println("NFA successfully saved to the file.")
     file.Close()
 }
 
