@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"strings"
     "crypto/md5"
+    "bytes"
+    "os"
+    "io/ioutil"
 )
 
 type NFA struct {
@@ -17,10 +20,10 @@ func (nfa *NFA) Hash() [16]byte {
     for _, n := range nfa.nodes {
         var r_name, l_name string
         if n.Right != nil {
-            r_name = n.Right.Name
+            r_name = n.Right.Name()
         }
         if n.Left != nil {
-            l_name = n.Left.Name
+            l_name = n.Left.Name()
         }
         data += fmt.Sprintf("%s%s%s%s%s", n.Name, n.LeftSymbol, n.RightSymbol, l_name, r_name)
     }
@@ -32,37 +35,95 @@ func (nfa *NFA) Length() int {
     return len(nfa.nodes)
 }
 
-func (nfa *NFA) PrintJSON() {
-    fmt.Println("JSON:")
-
-    type JSONNode struct {
-        Name, LeftName, RightName, LeftSymbol, RightSymbol string
+func (nfa *NFA) SaveToFile(filename string) {
+    file, err := os.Create(filename)
+    if err != nil {
+        fmt.Println("Error when creating file: "+err.Error())
+        return
     }
+
+    _, err = file.Write(nfa.JSON())
+    if err != nil {
+        fmt.Println("Error when writing to file: "+err.Error())
+    }
+    file.Close()
+}
+
+func (nfa *NFA) JSON() []byte {
     var n_array []JSONNode
 
     for _, node := range nfa.nodes {
-        var left_name, right_name, left_symbol, right_symbol string
+        var left_symbol, right_symbol string
+        var left_id, right_id int
         if node.Left != nil {
-            left_name = node.Left.Name
+            left_id = node.Left.Id
             left_symbol = node.LeftSymbol
         }
         if node.Right != nil {
-            right_name = node.Right.Name
+            right_id = node.Right.Id
             right_symbol = node.RightSymbol
         }
-        n_array = append(n_array, JSONNode{node.Name, left_name, right_name, left_symbol, right_symbol})
+        n_array = append(n_array, JSONNode{node.Id, left_id, right_id, left_symbol, right_symbol})
     }
 
-    json_data, _ := json.MarshalIndent(n_array, "", "   ")
-    fmt.Println(string(json_data))
-
+    json_data, _ := json.Marshal(n_array)
+    return json_data
 }
 
+func (nfa *NFA) PrintJSON() {
+    var pretty_json bytes.Buffer
+    json.Indent(&pretty_json, nfa.JSON(), "", "     ")
+    fmt.Println(pretty_json.String())
+}
+
+
+func NewFromFile(filename string) *NFA {
+    file, err := ioutil.ReadFile(filename)
+    if err != nil {
+        panic("Error when opening file: "+err.Error())
+    }
+    return NewFromJSON(file)
+}
+
+func NewFromJSON(input_data []byte) *NFA {
+    var n_array []JSONNode
+    err := json.Unmarshal(input_data, &n_array)
+    if err != nil {
+        panic("Error when parsing NFA file. "+err.Error())
+    }
+
+    var nodes []*Node
+    for _, node := range n_array {
+        new_node := Node{LeftSymbol: node.LeftSymbol, RightSymbol: node.RightSymbol}
+        nodes = append(nodes, &new_node)
+    }
+
+    for i, node := range n_array {
+        if node.Left_id > 0 {
+            nodes[i].Left = nodes[node.Left_id-1]
+        }
+        if node.Right_id > 0 {
+            nodes[i].Right = nodes[node.Right_id-1]
+        }
+    }
+
+    return NewNFA(nodes...)
+}
+
+
+
+
+
 func (nfa *NFA) addNode(new_node *Node) {
+    new_node.Id = len(nfa.nodes)
 	nfa.nodes = append(nfa.nodes, new_node)
 }
 
 func (nfa *NFA) addNodes(new_nodes []*Node) {
+    var start_i = len(nfa.nodes)
+    for i, nnode := range new_nodes {
+        nnode.Id = start_i+i
+    }
 	nfa.nodes = append(nfa.nodes, new_nodes...)
 }
 
@@ -70,7 +131,7 @@ func NewNFA(nodes ...*Node) *NFA {
 	var nfa NFA
 	nfa.addNodes(nodes)
 	for i, v := range nodes {
-		v.Name = fmt.Sprintf("Node%d", i+1)
+		v.Id = i
 	}
 	nfa.begin = nodes[0]
 	nfa.end = nodes[len(nodes)-1]
