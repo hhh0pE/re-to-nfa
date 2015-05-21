@@ -31,6 +31,10 @@ func (nfa *NFA) Hash() [16]byte {
     return md5.Sum([]byte(data))
 }
 
+func (nfa *NFA) Nodes() []*Node {
+    return nfa.nodes
+}
+
 func (nfa *NFA) Length() int {
     return len(nfa.nodes)
 }
@@ -101,10 +105,10 @@ func NewFromJSON(input_data []byte) *NFA {
 
     for i, node := range n_array {
         if node.Left_id > 0 {
-            nodes[i].Left = nodes[node.Left_id-1]
+            nodes[i].Left = nodes[node.Left_id]
         }
         if node.Right_id > 0 {
-            nodes[i].Right = nodes[node.Right_id-1]
+            nodes[i].Right = nodes[node.Right_id]
         }
     }
 
@@ -221,7 +225,6 @@ func powerNFA(a *NFA) *NFA {
 }
 
 func BuildNFA(pattern string) *NFA {
-//	fmt.Println(pattern)
 	if len(pattern) == 1 {
 		if strings.Contains(pattern, "+*()") {
 			return nil
